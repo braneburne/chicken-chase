@@ -1,7 +1,7 @@
 <h1 align="center">🐔 Chicken Chase 2D</h1>
 
 <p align="center">
-  <strong>A fun and fast-paced 2D browser game built by Braneburne Studios — where two players compete to chase and capture wandering chickens!</strong>
+  <strong>A fun and fast-paced 2D browser game built by Braneburne Studios — where a player chase and capture wandering chickens!</strong>
 </p>
 
 ---
@@ -43,4 +43,5 @@
 ### ⚖️ License
 This project is licensed under the **Creative Commons Attribution–NonCommercial 4.0 International License (CC BY-NC 4.0)**.  
 © 2025 Braneburne Studios. All rights reserved.
+
 
