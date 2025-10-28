@@ -8,9 +8,8 @@
 
 ## 🎮 Gameplay Overview
 
-- **Two-player local mode**
-  - Player 1 uses **W, A, S, D** to move.
-  - Player 2 uses **Arrow Keys** to move.
+- **Player local mode**
+  - Player uses **W, A, S, D** to move or **Arrow Keys** to move.
 - **Objective:** Catch as many chickens as possible before the timer ends.
 - Each captured chicken:
   - Instantly appears in your personal **pen (box)**.
@@ -25,7 +24,6 @@
 ## 🧩 Game Features
 
 ✅ Adjustable round timer  
-✅ Two-player split controls  
 ✅ Unlimited captures per player  
 ✅ Random chicken spawns  
 ✅ Health and level tracking  
@@ -43,5 +41,6 @@
 ### ⚖️ License
 This project is licensed under the **Creative Commons Attribution–NonCommercial 4.0 International License (CC BY-NC 4.0)**.  
 © 2025 Braneburne Studios. All rights reserved.
+
 
 
