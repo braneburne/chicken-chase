@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chicken Chase: Veteran Edition</title>
+    <!-- Load Inter font from Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom CSS for Game Aesthetics */
+        :root {
+            --farm-green: #4CAF50;
+            --dirt-brown: #A0522D;
+            --player-color: #007bff;
+            --chicken-color: #FFD700;
+            --background-color: #87CEEB; /* Sky blue (Default) */
+            --seed-color: #6d4c41; /* Brown */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+        }
+
+        #game-container {
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            max-width: 650px; 
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #gameCanvas {
+            border: 5px solid var(--dirt-brown);
+            background-color: var(--farm-green);
+            border-radius: 10px;
+            touch-action: none; /* Prevents default mobile actions like scrolling/zooming */
+        }
+
+        #controls-panel {
+            margin-top: 15px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            align-items: center;
+            padding: 0 5px;
+        }
+        
+        #ability-panel {
+            margin-top: 10px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .game-button {
+            padding: 10px 15px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(145deg, #FF9800, #FF5722);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+
+        .game-button:hover {
+            background: linear-gradient(145deg, #FFC107, #FF9800);
+            transform: translateY(-1px);
+        }
+
+        .game-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Ability Buttons */
+        .ability-button {
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: all 0.1s;
+        }
+        .ability-button.shield {
+            background-color: #3b82f6; /* Blue */
+        }
+        .ability-button.net {
+            background-color: #10b981; /* Teal */
+        }
+        .ability-button.on-cooldown {
+            background-color: #6b7280 !important;
+        }
+        .ability-button:not(:disabled):hover {
+            transform: translateY(-2px);
+        }
+
+        /* Message Box Styling */
+        #message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 25px 35px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.7);
+            z-index: 100;
+            display: none;
+            max-width: 95%;
+            font-size: 1rem;
+        }
+        
+        /* Selection Options */
+        .selection-panel {
+            background-color: #262626; /* Dark gray */
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        .mode-option, .level-option {
+            padding: 8px 12px;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            font-weight: 600;
+            color: #d1d5db; /* Light gray */
+            background-color: #4b5563; /* Medium gray */
+            transition: all 0.1s;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+        }
+        .mode-option:hover, .level-option:hover {
+            opacity: 0.8;
+        }
+        .mode-option.selected-mode {
+            border: 2px solid #fcd34d; /* Amber */
+            background-color: #f59e0b; /* Amber 600 */
+            color: #1f2937;
+        }
+        
+        .level-option.selected-level { 
+            border: 2px solid #fcd34d; 
+            filter: brightness(1.2); /* Make it stand out */
+            color: #1f2937;
+        }
+        
+        /* Input styling */
+        .config-input {
+            width: 80px;
+            padding: 4px;
+            margin: 0 5px;
+            border-radius: 4px;
+            border: 1px solid #9ca3af;
+            text-align: center;
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1 class="text-3xl font-extrabold mb-2 text-gray-800">🐔 Chicken Chase 🤠</h1>
+
+    <div id="controls-panel">
+        <div class="text-base font-semibold text-gray-700">Time: <span id="timerDisplay" class="text-blue-600 font-extrabold">30.0s</span></div>
+        <button id="startButton" class="game-button">Start Game</button>
+        <div class="text-base font-semibold text-gray-700 text-right">Health: <span id="healthDisplay" class="text-green-600 font-extrabold">5/5</span></div>
+    </div>
+    
+    <div id="status-panel" class="w-full flex justify-between items-center text-sm font-medium mt-2 mb-2 px-1">
+         <div id="modeDisplay" class="text-purple-700 font-bold">Mode: Novice</div>
+         <div id="chickenCountDisplay" class="text-gray-600">Captured: 0/3</div>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ability-panel">
+        <button id="shieldButton" class="ability-button shield text-white disabled:opacity-50" disabled>
+            <span class="mr-1">🛡️</span> Shield (Z)
+        </button>
+        <button id="netButton" class="ability-button net text-white disabled:opacity-50" disabled>
+            <span class="mr-1">🕸️</span> Net (X)
+        </button>
+    </div>
+
+    <!-- Message Box for Game Over / Instructions -->
+    <div id="message-box">
+        <h2 id="message-title" class="text-2xl font-extrabold mb-3">Game Over!</h2>
+        <p id="message-text" class="mb-4 text-lg"></p>
+        
+        <!-- Difficulty Mode Selection -->
+        <div id="modeSelection" class="selection-panel">
+            <div class="w-full text-lg font-bold text-white mb-2">Select Player Mode:</div>
+            <div id="modeButtons" class="w-full flex flex-wrap justify-center space-x-2">
+                <!-- Mode buttons inserted by JavaScript -->
+            </div>
+        </div>
+        
+        <!-- Level Selection (NEW) -->
+        <div id="levelSelection" class="selection-panel mt-4">
+            <div class="w-full text-lg font-bold text-white mb-2">Select Environment:</div>
+            <div id="levelButtons" class="w-full flex flex-wrap justify-center space-x-2">
+                <!-- Level buttons inserted by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Custom Configuration -->
+        <div id="customConfig" class="selection-panel">
+            <div class="w-full text-lg font-bold text-white mb-3">Customize Game:</div>
+            <div class="flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-8">
+                <label class="text-white font-medium">
+                    Time (s): 
+                    <input type="number" id="timeInput" min="10" max="180" value="30" class="config-input">
+                </label>
+                <label class="text-white font-medium">
+                    Chickens: 
+                    <input type="number" id="chickenInput" min="1" max="15" value="3" class="config-input">
+                </label>
+            </div>
+        </div>
+        
+        <!-- Character Selection -->
+        <div id="characterSelection" class="flex flex-wrap justify-center mb-4 border-t border-gray-700 pt-4">
+            <!-- Character buttons will be inserted here by JavaScript -->
+        </div>
+        
+        <div id="instructionText" class="text-sm mb-4 text-gray-300"></div>
+
+        <button id="closeMessageButton" class="game-button mt-4">Play Again</button>
+    </div>
+
+</div>
+
+<script>
+    // --- Global Variables and Constants ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const healthDisplay = document.getElementById('healthDisplay');
+    const startButton = document.getElementById('startButton');
+    const messageBox = document.getElementById('message-box');
+    const messageTitle = document.getElementById('message-title');
+    const messageText = document.getElementById('message-text');
+    const closeMessageButton = document.getElementById('closeMessageButton');
+    const characterSelection = document.getElementById('characterSelection');
+    const chickenCountDisplay = document.getElementById('chickenCountDisplay');
+    const modeDisplay = document.getElementById('modeDisplay');
+    const levelButtonsDiv = document.getElementById('levelButtons');
+    
+    const shieldButton = document.getElementById('shieldButton');
+    const netButton = document.getElementById('netButton');
+    const timeInput = document.getElementById('timeInput');
+    const chickenInput = document.getElementById('chickenInput');
+
+    const PLAYER_SIZE = 30;
+    const CHICKEN_SIZE = 25;
+    const SEED_SIZE = 5;
+    const PLAYER_SPEED = 5;
+    const CHICKEN_SPEED = 3;
+    const SEED_SPEED = 6;
+    const CHICKEN_MOVE_INTERVAL = 1000; 
+    const CHICKEN_FIRE_RATE = 2000; // ms between fire checks (per chicken)
+
+    const CHICKEN_EMOJI = '🐔'; 
+    const SHIELD_DURATION = 3000; // 3 seconds
+    const SHIELD_COOLDOWN = 10000; // 10 seconds
+    const NET_STUN_DURATION = 2500; // 2.5 seconds
+    const NET_COOLDOWN = 8000; // 8 seconds
+    const NET_RADIUS = 100; // Net effective radius in pixels
+    const MAX_HEALTH = 5;
+    
+    const SEED_COLOR_CODE = '#6d4c41'; 
+
+    // Define the available characters and their emojis
+    const PLAYER_CHARACTERS = [
+        { name: 'Farmer', emoji: '🤠' },
+        { name: 'Hunter', emoji: '🏹' },
+        { name: 'Ninja', emoji: '🥷' },
+        { name: 'Agent', emoji: '👩‍✈️' }
+    ];
+    
+    // Level definitions (NEW)
+    const GAME_LEVELS = {
+        barn: { name: "Barn", background: "#4CAF50", chickenColor: "#FFD700" }, // Farm Green, Gold Chicken
+        town: { name: "Town", background: "#B0C4DE", chickenColor: "#A9A9A9" }, // Light Slate, Silver Chicken
+        forest: { name: "Forest", background: "#006400", chickenColor: "#FFFFFF" }, // Dark Green, White Chicken
+        castle: { name: "Castle", background: "#708090", chickenColor: "#800080" }, // Slate Gray, Purple Chicken
+        underground: { name: "Underground", background: "#4B371C", chickenColor: "#FF4500" } // Dark Brown, Red-Orange Chicken
+    };
+    
+    const PLAYER_MODES = [
+        { id: 'novice', name: 'Novice', baseChickens: 3, seedAttack: false, health: MAX_HEALTH, color: 'text-green-500' },
+        { id: 'expert', name: 'Expert', baseChickens: 5, seedAttack: false, health: MAX_HEALTH, color: 'text-yellow-500' },
+        { id: 'veteran', name: 'Veteran', baseChickens: 7, seedAttack: true, health: MAX_HEALTH, color: 'text-red-500' }
+    ];
+
+    // Static, normalized coordinates for barriers
+    const STATIC_BARRIERS = [
+        { id: 'house', x: 0.7, y: 0.05, w: 0.25, h: 0.35 },
+        { id: 'pen_fence', x: 0.05, y: 0.6, w: 0.35, h: 0.3 }
+    ];
+    const PEN_BARRIER = STATIC_BARRIERS.find(b => b.id === 'pen_fence');
+    
+    let gameLoopId;
+    let lastTime = 0;
+    
+    let state = {
+        isRunning: false,
+        score: 0,
+        timeLeft: 30,
+        lastChickenMoveTime: 0,
+        isDragging: false,
+        dragOffsetX: 0,
+        dragOffsetY: 0,
+        player: { x: 0, y: 0, dx: 0, dy: 0, emoji: PLAYER_CHARACTERS[0].emoji, health: MAX_HEALTH },
+        chickens: [],
+        projectiles: [], // New array for seeds
+        capturedCount: 0,
+        messageVisible: false,
+        currentModeId: PLAYER_MODES[0].id, // Default to Novice
+        currentLevelKey: 'barn', // NEW: Default to Barn
+        currentObstacles: [],
+        maxChickens: 3,
+        seedAttackEnabled: false,
+        isShieldActive: false,
+        shieldEndTime: 0,
+        shieldCooldownEndTime: 0,
+        netCooldownEndTime: 0,
+        chickenStunEndTime: 0,
+    };
+
+
+    // --- Helper Functions ---
+    
+    function scaleCoords(obs) {
+        return {
+            x: obs.x * canvas.width,
+            y: obs.y * canvas.height,
+            w: obs.w * canvas.width,
+            h: obs.h * canvas.height
+        };
+    }
+    
+    function getPenCoords() {
+        if (!PEN_BARRIER) return null;
+        return scaleCoords(PEN_BARRIER);
+    }
+    
+    function assignPenPosition(chicken, index) {
+        const pen = getPenCoords();
+        if (!pen) return;
+
+        const chickenRadius = CHICKEN_SIZE / 2;
+        const padding = 15;
+        
+        // Arrange captured chickens in a grid
+        const cols = 3; 
+        const rows = Math.ceil(state.maxChickens / cols);
+        
+        const i = index - 1;
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+
+        const xStep = (pen.w - 2 * padding) / cols;
+        const xOffset = pen.x + padding + chickenRadius + col * xStep;
+
+        const yStep = (pen.h - 2 * padding) / rows;
+        const yOffset = pen.y + padding + chickenRadius + row * yStep;
+
+        chicken.x = xOffset;
+        chicken.y = yOffset;
+        chicken.dx = 0; 
+        chicken.dy = 0;
+    }
+
+
+    // --- Drawing Functions ---
+
+    function drawChicken(chicken) {
+        const level = GAME_LEVELS[state.currentLevelKey];
+        const chickenColor = level ? level.chickenColor : '#FFD700';
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+        ctx.shadowBlur = 4;
+        
+        // 1. Draw the colored circle background (The 'body' of the level-specific chicken)
+        ctx.beginPath();
+        ctx.arc(chicken.x, chicken.y, CHICKEN_SIZE / 2, 0, Math.PI * 2);
+        ctx.fillStyle = chickenColor;
+        ctx.fill();
+        ctx.closePath();
+        
+        // 2. Draw the emoji on top of the colored body
+        ctx.font = `${CHICKEN_SIZE - 5}px sans-serif`;
+        
+        // Stunned chickens look greyed out
+        if (chicken.isStunned) {
+            ctx.globalAlpha = 0.5;
+            ctx.fillText('😵', chicken.x, chicken.y);
+        } else {
+            ctx.fillText(CHICKEN_EMOJI, chicken.x, chicken.y);
+        }
+        
+        ctx.shadowBlur = 0; 
+        ctx.globalAlpha = 1.0;
+    }
+
+    function drawCapturedChicken(chicken) {
+        const level = GAME_LEVELS[state.currentLevelKey];
+        const chickenColor = level ? level.chickenColor : '#FFD700';
+
+        // Draw the colored circle background
+        ctx.beginPath();
+        ctx.arc(chicken.x, chicken.y, (CHICKEN_SIZE - 5) / 2, 0, Math.PI * 2);
+        ctx.fillStyle = chickenColor;
+        ctx.fill();
+        ctx.closePath();
+        
+        ctx.font = `${CHICKEN_SIZE - 10}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = 0.8;
+        ctx.fillText(CHICKEN_EMOJI, chicken.x, chicken.y);
+        ctx.globalAlpha = 1.0;
+    }
+    
+    function drawPlayer() {
+        ctx.font = `${PLAYER_SIZE}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Draw Shield effect if active
+        if (state.isShieldActive) {
+            ctx.beginPath();
+            ctx.arc(state.player.x, state.player.y, PLAYER_SIZE * 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(66, 133, 244, 0.3)'; // Google Blue tint
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'rgba(66, 133, 244, 0.8)';
+            ctx.stroke();
+        }
+
+        ctx.fillText(state.player.emoji, state.player.x, state.player.y);
+    }
+    
+    function drawProjectiles() {
+        ctx.fillStyle = SEED_COLOR_CODE; 
+        state.projectiles.forEach(seed => {
+            ctx.beginPath();
+            ctx.arc(seed.x, seed.y, SEED_SIZE, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+
+    function drawScenery() {
+        STATIC_BARRIERS.forEach(barrier => {
+            const p = scaleCoords(barrier);
+            
+            if (barrier.id === 'house') {
+                ctx.fillStyle = 'firebrick';
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.w, p.y);
+                ctx.lineTo(p.x + p.w / 2, p.y - 0.1 * canvas.height); 
+                ctx.closePath();
+                ctx.fillStyle = '#654321'; 
+                ctx.fill();
+                ctx.fillStyle = '#A0522D'; 
+                ctx.fillRect(p.x + p.w * 0.4, p.y + p.h * 0.6, p.w * 0.2, p.h * 0.4);
+
+            } else if (barrier.id === 'pen_fence') {
+                ctx.strokeStyle = '#D2B48C'; 
+                ctx.lineWidth = 5;
+                ctx.strokeRect(p.x, p.y, p.w, p.h);
+                ctx.fillStyle = '#8B451315'; 
+                ctx.fillRect(p.x + ctx.lineWidth/2, p.y + ctx.lineWidth/2, p.w - ctx.lineWidth, p.h - ctx.lineWidth);
+                
+                ctx.fillStyle = '#654321'; 
+                ctx.font = 'bold 18px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const countText = `CAPTURED: ${state.capturedCount} / ${state.maxChickens}`;
+                ctx.fillText(countText, p.x + p.w / 2, p.y + p.h / 2);
+            }
+        });
+    }
+
+    function drawObstacles() {
+        ctx.fillStyle = 'saddlebrown';
+        
+        // Filter out static barriers as they are drawn in drawScenery
+        const levelOnlyObstacles = state.currentObstacles.filter(o => o.id !== 'house' && o.id !== 'pen_fence');
+
+        levelOnlyObstacles.forEach(obs => {
+            const p = scaleCoords(obs);
+            
+            ctx.fillRect(p.x, p.y, p.w, p.h);
+            ctx.strokeStyle = '#8B4513'; 
+            ctx.lineWidth = 2;
+            ctx.strokeRect(p.x, p.y, p.w, p.h);
+        });
+    }
+
+    function draw() {
+        // 1. Draw Canvas Background (Level Specific)
+        const level = GAME_LEVELS[state.currentLevelKey];
+        ctx.fillStyle = level ? level.background : '#87CEEB'; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 2. Draw Scenery (Obstacles and Pen)
+        drawScenery(); 
+        drawObstacles(); 
+
+        // 3. Draw entities
+        state.chickens.filter(c => c.isCaptured).forEach(drawCapturedChicken);
+        state.chickens.filter(c => !c.isCaptured).forEach(drawChicken);
+        
+        drawProjectiles();
+        drawPlayer();
+    }
+
+
+    // --- Game Logic Functions ---
+    
+    /**
+     * Finds a random, safe position for a chicken outside all barriers.
+     */
+    function spawnChickenOutside(chicken) {
+        const chickenRadius = CHICKEN_SIZE / 2;
+        let safe = false;
+        let attempts = 0;
+        const maxAttempts = 100;
+
+        while (!safe && attempts < maxAttempts) {
+            // Spawn position away from the center (to encourage movement)
+            chicken.x = chickenRadius + Math.random() * (canvas.width - 2 * chickenRadius);
+            chicken.y = chickenRadius + Math.random() * (canvas.height - 2 * chickenRadius);
+
+            if (!checkObstacleCollision(chickenRadius, chicken.x, chicken.y)) {
+                safe = true;
+            }
+            attempts++;
+        }
+        
+        if (!safe) {
+            chicken.x = canvas.width / 2;
+            chicken.y = canvas.height / 2;
+        }
+
+        chicken.dx = (Math.random() - 0.5) * CHICKEN_SPEED;
+        chicken.dy = (Math.random() - 0.5) * CHICKEN_SPEED;
+        chicken.lastShotTime = performance.now();
+    }
+    
+    /**
+     * Adds a new chicken (free/not captured) to the game.
+     */
+    function addChicken() {
+        if (state.chickens.length >= state.maxChickens) return;
+        
+        const newChicken = { 
+            x: 0, 
+            y: 0, 
+            dx: 0, 
+            dy: 0, 
+            id: crypto.randomUUID(),
+            isCaptured: false,
+            isStunned: false, 
+            lastShotTime: 0,
+        };
+        
+        spawnChickenOutside(newChicken); 
+        state.chickens.push(newChicken);
+        
+        updateGameStatusDisplay();
+    }
+    
+    /**
+     * Spawns a seed projectile from the chicken towards the player.
+     */
+    function shootSeed(chicken) {
+        const dx = state.player.x - chicken.x;
+        const dy = state.player.y - chicken.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > 0) {
+            const seed = {
+                x: chicken.x,
+                y: chicken.y,
+                dx: (dx / dist) * SEED_SPEED,
+                dy: (dy / dist) * SEED_SPEED,
+            };
+            state.projectiles.push(seed);
+        }
+    }
+
+
+    function updateChickenMovement(chicken, deltaTime) {
+        if (chicken.isStunned) return;
+        
+        const fleeFactor = 1.5;
+        const dxToPlayer = chicken.x - state.player.x;
+        const dyToPlayer = chicken.y - state.player.y;
+        const distToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
+
+        let targetDx = 0;
+        let targetDy = 0;
+
+        if (distToPlayer < canvas.width * 0.4) {
+            targetDx = dxToPlayer * fleeFactor;
+            targetDy = dyToPlayer * fleeFactor;
+        }
+
+        const randomDx = (Math.random() - 0.5) * canvas.width * 0.1;
+        const randomDy = (Math.random() - 0.5) * canvas.height * 0.1;
+
+        targetDx += randomDx;
+        targetDy += randomDy;
+
+        const magnitude = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
+        if (magnitude > 0) {
+            chicken.dx = (targetDx / magnitude) * CHICKEN_SPEED;
+            chicken.dy = (targetDy / magnitude) * CHICKEN_SPEED;
+        } else {
+            chicken.dx = 0;
+            chicken.dy = 0;
+        }
+    }
+
+    function checkObstacleCollision(entityRadius, newX, newY) {
+        const radius = entityRadius;
+
+        for (const obs of state.currentObstacles) {
+            const obsX = obs.x * canvas.width;
+            const obsY = obs.y * canvas.height;
+            const obsW = obs.w * canvas.width;
+            const obsH = obs.h * canvas.height;
+
+            const closestX = Math.max(obsX, Math.min(newX, obsX + obsW));
+            const closestY = Math.max(obsY, Math.min(newY, obsY + obsH));
+
+            const distanceX = newX - closestX;
+            const distanceY = newY - closestY;
+
+            if ((distanceX * distanceX + distanceY * distanceY) < (radius * radius)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    function updateProjectiles(deltaTime) {
+        const playerRadius = PLAYER_SIZE / 2;
+        const newProjectiles = [];
+        const now = performance.now();
+
+        state.projectiles.forEach(seed => {
+            seed.x += seed.dx;
+            seed.y += seed.dy;
+
+            // 1. Check collision with player
+            const dx = state.player.x - seed.x;
+            const dy = state.player.y - seed.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < playerRadius + SEED_SIZE) {
+                // Collision occurred
+                if (!state.isShieldActive) {
+                    state.player.health = Math.max(0, state.player.health - 1);
+                    updateHealthDisplay();
+                    // Check for Game Over on damage
+                    if (state.player.health <= 0) {
+                        endGame(false, "You ran out of health! The chickens were too fast!");
+                        return;
+                    }
+                } 
+                // Seed is destroyed on contact, regardless of shield status
+            } else if (seed.x < 0 || seed.x > canvas.width || seed.y < 0 || seed.y > canvas.height) {
+                // 2. Check boundary collision (out of bounds)
+                // Seed is discarded
+            } else {
+                // 3. Keep projectile if it hasn't collided
+                newProjectiles.push(seed);
+            }
+        });
+        
+        state.projectiles = newProjectiles;
+    }
+
+    function update(deltaTime) {
+        if (!state.isRunning) return;
+        const now = performance.now();
+
+        // --- Player Movement & Abilities ---
+        
+        // 1. Check ability status
+        state.isShieldActive = now < state.shieldEndTime;
+        
+        // Update ability button states
+        shieldButton.disabled = now < state.shieldCooldownEndTime;
+        netButton.disabled = now < state.netCooldownEndTime;
+        
+        // Update player movement
+        let newX = state.player.x + state.player.dx;
+        let newY = state.player.y + state.player.dy;
+        const playerRadius = PLAYER_SIZE / 2;
+
+        newX = Math.min(Math.max(newX, playerRadius), canvas.width - playerRadius);
+        newY = Math.min(Math.max(newY, playerRadius), canvas.height - playerRadius);
+
+        if (!checkObstacleCollision(playerRadius, newX, state.player.y)) {
+            state.player.x = newX;
+        } else { state.player.dx = 0; }
+
+        if (!checkObstacleCollision(playerRadius, state.player.x, newY)) {
+            state.player.y = newY;
+        } else { state.player.dy = 0; }
+
+        // --- Chicken Movement and Collision ---
+        const chickenRadius = CHICKEN_SIZE / 2;
+        const shouldMoveChicken = now - state.lastChickenMoveTime >= CHICKEN_MOVE_INTERVAL;
+
+        if (shouldMoveChicken) {
+             state.lastChickenMoveTime = now;
+        }
+        
+        // Update chicken stun state
+        if (now > state.chickenStunEndTime) {
+            state.chickens.forEach(c => c.isStunned = false);
+        }
+
+        state.chickens.filter(c => !c.isCaptured).forEach((chicken) => {
+            
+            if (shouldMoveChicken) {
+                updateChickenMovement(chicken, deltaTime);
+            }
+
+            // Chicken AI movement and boundary/obstacle check
+            let chickenNewX = chicken.x + chicken.dx;
+            let chickenNewY = chicken.y + chicken.dy;
+            let collided = false;
+            
+            if (chickenNewX < chickenRadius || chickenNewX > canvas.width - chickenRadius) {
+                chicken.dx *= -1;
+                collided = true;
+            }
+            if (chickenNewY < chickenRadius || chickenNewY > canvas.height - chickenRadius) {
+                chicken.dy *= -1;
+                collided = true;
+            }
+
+            if (!collided) {
+                if (checkObstacleCollision(chickenRadius, chickenNewX, chicken.y)) {
+                    chicken.dx *= -1;
+                    collided = true;
+                }
+                if (checkObstacleCollision(chickenRadius, chicken.x, chickenNewY)) {
+                    chicken.dy *= -1;
+                    collided = true;
+                }
+            }
+
+            chicken.x += chicken.dx;
+            chicken.y += chicken.dy;
+            
+            // --- Veteran Mode: Chicken Attack ---
+            if (state.seedAttackEnabled && !chicken.isStunned && (now - chicken.lastShotTime > CHICKEN_FIRE_RATE) && Math.random() < 0.2) {
+                shootSeed(chicken);
+                chicken.lastShotTime = now;
+            }
+
+            // --- Capture Collision Detection ---
+            const dx = state.player.x - chicken.x;
+            const dy = state.player.y - chicken.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < (playerRadius) + (chickenRadius) - 5) {
+                
+                chicken.isCaptured = true;
+                chicken.isStunned = false; // Cannot be stunned once captured
+                state.capturedCount++;
+                
+                assignPenPosition(chicken, state.capturedCount);
+                
+                // Spawn next chicken immediately if we haven't reached the max count
+                if (state.chickens.length < state.maxChickens) {
+                    addChicken(); 
+                }
+
+                if (state.capturedCount === state.maxChickens) {
+                     endGame(true, "You successfully caught every chicken! The farm is safe.");
+                     return; 
+                }
+                
+                updateGameStatusDisplay();
+            }
+        });
+        
+        // --- Projectile Update ---
+        updateProjectiles(deltaTime);
+
+        // --- Timer Update ---
+        state.timeLeft -= deltaTime / 1000;
+        timerDisplay.textContent = `${Math.max(0, state.timeLeft).toFixed(1)}s`;
+
+        if (state.timeLeft <= 0) {
+            state.timeLeft = 0;
+            endGame(false, `Time's up! You caught ${state.capturedCount} out of ${state.maxChickens} chickens.`);
+        }
+    }
+    
+    // --- Ability Handlers ---
+    
+    function activateShield() {
+        const now = performance.now();
+        if (now < state.shieldCooldownEndTime || state.isShieldActive || !state.isRunning) return;
+
+        state.shieldEndTime = now + SHIELD_DURATION;
+        state.shieldCooldownEndTime = now + SHIELD_COOLDOWN;
+    }
+    
+    function useNet() {
+        const now = performance.now();
+        if (now < state.netCooldownEndTime || !state.isRunning) return;
+
+        state.netCooldownEndTime = now + NET_COOLDOWN;
+        state.chickenStunEndTime = now + NET_STUN_DURATION;
+        
+        // Find and stun nearby free chickens
+        state.chickens.filter(c => !c.isCaptured).forEach(chicken => {
+            const dx = state.player.x - chicken.x;
+            const dy = state.player.y - chicken.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < NET_RADIUS) {
+                chicken.isStunned = true;
+                chicken.dx = 0;
+                chicken.dy = 0;
+            }
+        });
+    }
+
+    /**
+     * The main game loop function called by requestAnimationFrame.
+     */
+    function gameLoop(currentTime) {
+        const deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+
+        update(deltaTime);
+        draw();
+
+        if (state.isRunning) {
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+    }
+
+    /**
+     * Initializes the game state and starts the game loop.
+     */
+    function startGame() {
+        if (state.isRunning) return;
+        
+        const selectedMode = PLAYER_MODES.find(m => m.id === state.currentModeId);
+        
+        // Apply custom configuration (or use mode defaults if inputs are invalid)
+        state.maxChickens = parseInt(chickenInput.value) || selectedMode.baseChickens;
+        state.timeLeft = parseInt(timeInput.value) || 30;
+        state.seedAttackEnabled = selectedMode.seedAttack;
+
+        // --- Load Obstacles for the selected level (STATIC + LEVEL SPECIFIC) ---
+        const levelConfig = { id: 'easy', obstacles: [] }; // Keeping single "easy" level for complexity management
+        state.currentObstacles = [...STATIC_BARRIERS, ...(levelConfig ? levelConfig.obstacles : [])];
+
+        // Reset state
+        state.score = 0;
+        state.isRunning = true;
+        state.player.dx = 0;
+        state.player.dy = 0;
+        state.player.health = selectedMode.health;
+        state.chickens = [];
+        state.projectiles = [];
+        state.capturedCount = 0;
+        state.shieldCooldownEndTime = performance.now(); // Ready to use at start
+        state.netCooldownEndTime = performance.now();
+
+        
+        hideMessage();
+        startButton.textContent = "Running...";
+        startButton.disabled = true;
+        
+        updateHealthDisplay();
+        updateGameStatusDisplay();
+        timerDisplay.textContent = `${state.timeLeft.toFixed(1)}s`;
+
+        resizeCanvas();
+        state.player.x = canvas.width / 2;
+        state.player.y = canvas.height / 2;
+        
+        // Add all initial chickens up to maxChickens
+        for (let i = 0; i < state.maxChickens; i++) {
+            addChicken();
+        }
+
+        // Enable ability buttons
+        shieldButton.disabled = false;
+        netButton.disabled = false;
+
+        // Start loops
+        lastTime = performance.now();
+        gameLoopId = requestAnimationFrame(gameLoop);
+    }
+
+    /**
+     * Stops the game loop and shows the final score.
+     */
+    function endGame(isWin = false, message) {
+        state.isRunning = false;
+        cancelAnimationFrame(gameLoopId);
+        
+        shieldButton.disabled = true;
+        netButton.disabled = true;
+        
+        const title = isWin ? "VICTORY!" : "Game Over!";
+        
+        showMessage(title, message, "Play Again");
+        startButton.textContent = "Start Game";
+        startButton.disabled = false;
+    }
+
+    // --- UI Update Functions ---
+    
+    function updateHealthDisplay() {
+        const healthText = `${state.player.health}/${MAX_HEALTH}`;
+        healthDisplay.textContent = healthText;
+        if (state.player.health < MAX_HEALTH / 2) {
+            healthDisplay.classList.remove('text-green-600');
+            healthDisplay.classList.add('text-red-600');
+        } else {
+            healthDisplay.classList.remove('text-red-600');
+            healthDisplay.classList.add('text-green-600');
+        }
+    }
+    
+    function updateGameStatusDisplay() {
+        chickenCountDisplay.textContent = `Captured: ${state.capturedCount}/${state.maxChickens}`;
+        const selectedMode = PLAYER_MODES.find(m => m.id === state.currentModeId);
+        modeDisplay.textContent = `Mode: ${selectedMode.name}`;
+        modeDisplay.className = `font-bold ${selectedMode.color}`;
+    }
+
+    // --- Selection and Menu Handlers ---
+    
+    function selectCharacter(emoji) {
+        state.player.emoji = emoji;
+        document.querySelectorAll('.character-option').forEach(btn => {
+            btn.classList.remove('selected-char', 'bg-yellow-700');
+            btn.classList.add('bg-yellow-500'); 
+            if (btn.getAttribute('data-emoji') === emoji) {
+                btn.classList.add('selected-char');
+                btn.classList.remove('bg-yellow-500');
+            }
+        });
+        updateInstructionText();
+    }
+    
+    function selectMode(modeId) {
+        state.currentModeId = modeId;
+        const mode = PLAYER_MODES.find(m => m.id === modeId);
+        
+        document.querySelectorAll('.mode-option').forEach(btn => {
+            btn.classList.remove('selected-mode');
+            if (btn.getAttribute('data-mode-id') === modeId) {
+                btn.classList.add('selected-mode');
+            }
+        });
+
+        // Update customization inputs to reflect mode defaults
+        chickenInput.value = mode.baseChickens;
+        
+        updateInstructionText();
+    }
+    
+    // NEW: Select Level Logic
+    function selectLevel(levelKey) {
+        state.currentLevelKey = levelKey;
+        const level = GAME_LEVELS[levelKey];
+        renderLevelSelection(); 
+        updateInstructionText();
+    }
+
+    function updateInstructionText() {
+        const selectedCharName = PLAYER_CHARACTERS.find(c => c.emoji === state.player.emoji)?.name || 'Farmer';
+        const mode = PLAYER_MODES.find(m => m.id === state.currentModeId);
+        const level = GAME_LEVELS[state.currentLevelKey];
+
+        let abilityInfo = `Use **Arrow Keys/WASD** or **Touch/Drag** to move.`;
+        
+        if (mode.seedAttack) {
+            abilityInfo += `<br> ⚠️ Chickens fire seeds! Use **Shield (Z)** to become immune and **Net (X)** to stun them.`;
+        } else {
+             abilityInfo += `<br> Catching chickens is the only objective. No seed attacks!`;
+        }
+
+        document.getElementById('instructionText').innerHTML = `
+            Environment: <strong>${level.name}</strong> | Mode: <strong>${mode.name}</strong> | Character: <strong>${selectedCharName} ${state.player.emoji}</strong>.
+            <br>
+            Capture all **${chickenInput.value} chickens** in **${timeInput.value} seconds**.
+            <br>
+            ${abilityInfo}
+        `;
+    }
+
+    function renderCharacterSelection() {
+        characterSelection.innerHTML = PLAYER_CHARACTERS.map(char => `
+            <button class="character-option bg-yellow-500 text-4xl p-3 rounded-full m-2 shadow-lg hover:bg-yellow-700 transition duration-150 ease-in-out"
+                    data-emoji="${char.emoji}"
+                    title="${char.name}">
+                ${char.emoji}
+            </button>
+        `).join('');
+
+        characterSelection.querySelectorAll('.character-option').forEach(btn => {
+            btn.addEventListener('click', () => selectCharacter(btn.getAttribute('data-emoji')));
+        });
+
+        selectCharacter(state.player.emoji);
+    }
+    
+    function renderModeSelection() {
+        const modeButtonsDiv = document.getElementById('modeButtons');
+        modeButtonsDiv.innerHTML = PLAYER_MODES.map(mode => `
+            <button class="mode-option m-1" data-mode-id="${mode.id}">
+                ${mode.name}
+            </button>
+        `).join('');
+
+        modeButtonsDiv.querySelectorAll('.mode-option').forEach(btn => {
+            btn.addEventListener('click', () => selectMode(btn.getAttribute('data-mode-id')));
+        });
+
+        selectMode(state.currentModeId);
+    }
+    
+    // NEW: Function to render level buttons
+    function renderLevelSelection() {
+        if (!levelButtonsDiv) return;
+
+        levelButtonsDiv.innerHTML = Object.keys(GAME_LEVELS).map(key => {
+            const level = GAME_LEVELS[key];
+            const isSelected = key === state.currentLevelKey;
+            
+            // Set background color from level, and use the chicken color as a contrasting icon dot
+            return `
+                <button class="level-option m-1 text-white font-medium ${isSelected ? 'selected-level' : ''}" 
+                        data-level-key="${key}"
+                        style="background-color: ${level.background}; color: ${key === 'forest' || key === 'castle' || key === 'underground' ? 'white' : 'black'};">
+                    <span style="color: ${level.chickenColor}; font-size: 1.2rem;">●</span> ${level.name}
+                </button>
+            `;
+        }).join('');
+
+        levelButtonsDiv.querySelectorAll('.level-option').forEach(btn => {
+            btn.addEventListener('click', () => selectLevel(btn.getAttribute('data-level-key')));
+        });
+    }
+
+    function showMessage(title, text, buttonText) {
+        messageTitle.textContent = title;
+        messageText.innerHTML = text; 
+        closeMessageButton.textContent = buttonText;
+        messageBox.style.display = 'block';
+        state.messageVisible = true;
+        
+        // Rerender menus on instruction/game over screens
+        renderModeSelection();
+        renderLevelSelection(); // NEW
+        renderCharacterSelection();
+        updateInstructionText(); 
+    }
+
+    function hideMessage() {
+        messageBox.style.display = 'none';
+        state.messageVisible = false;
+    }
+
+    // --- Input Handling ---
+
+    function handleKeyDown(e) {
+        if (state.messageVisible) return;
+
+        const speed = PLAYER_SPEED;
+        
+        if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w') {
+            state.player.dy = -speed;
+            state.player.dx = 0;
+        } else if (e.key === 'ArrowDown' || e.key.toLowerCase() === 's') {
+            state.player.dy = speed;
+            state.player.dx = 0;
+        } else if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
+            state.player.dx = -speed;
+            state.player.dy = 0;
+        } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
+            state.player.dx = speed;
+            state.player.dy = 0;
+        } else if (e.key.toLowerCase() === 'z') {
+            activateShield();
+        } else if (e.key.toLowerCase() === 'x') {
+            useNet();
+        }
+    }
+
+    function resizeCanvas() {
+        const container = document.getElementById('game-container');
+        let size = Math.min(container.clientWidth - 40, 550);
+        if (window.innerWidth < 640) { 
+            size = window.innerWidth - 60;
+        }
+
+        canvas.width = size;
+        canvas.height = size;
+
+        if (!state.isRunning) {
+            state.player.x = canvas.width / 2;
+            state.player.y = canvas.height / 2;
+        } 
+        
+        state.chickens.filter(c => c.isCaptured).forEach((chicken, index) => {
+            assignPenPosition(chicken, index + 1); 
+        });
+    }
+
+    // --- Initialization and Event Listeners (Including Touch) ---
+
+    function setupEventListeners() {
+        startButton.addEventListener('click', startGame);
+        closeMessageButton.addEventListener('click', startGame);
+        shieldButton.addEventListener('click', activateShield);
+        netButton.addEventListener('click', useNet);
+
+        document.addEventListener('keydown', handleKeyDown);
+        
+        // Ensure inputs are updated when value changes manually
+        chickenInput.addEventListener('input', updateInstructionText);
+        timeInput.addEventListener('input', updateInstructionText);
+        
+        canvas.addEventListener('mousedown', handleTouchStart);
+        canvas.addEventListener('mousemove', handleTouchMove);
+        canvas.addEventListener('mouseup', handleTouchEnd);
+        canvas.addEventListener('mouseleave', handleTouchEnd);
+
+        canvas.addEventListener('touchstart', handleTouchStart);
+        canvas.addEventListener('touchmove', handleTouchMove);
+        canvas.addEventListener('touchend', handleTouchEnd);
+
+        window.addEventListener('resize', resizeCanvas);
+    }
+    
+    // Touch/Drag handlers
+    function getTouchPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.clientX !== undefined ? e.clientX : e.touches[0].clientX;
+        const clientY = e.clientY !== undefined ? e.clientY : e.touches[0].clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function handleTouchStart(e) {
+        if (!state.isRunning || state.messageVisible) return;
+        e.preventDefault();
+        
+        const pos = getTouchPos(e);
+        const playerRadius = PLAYER_SIZE * 1.5; // Larger touch area for player
+
+        if (Math.abs(pos.x - state.player.x) < playerRadius && Math.abs(pos.y - state.player.y) < playerRadius) {
+            state.isDragging = true;
+            state.dragOffsetX = pos.x - state.player.x;
+            state.dragOffsetY = pos.y - state.player.y;
+            state.player.dx = 0;
+            state.player.dy = 0;
+        }
+    }
+
+    function handleTouchMove(e) {
+        if (!state.isRunning || !state.isDragging) return;
+        e.preventDefault();
+        
+        const pos = getTouchPos(e);
+        let targetX = pos.x - state.dragOffsetX;
+        let targetY = pos.y - state.dragOffsetY;
+        const playerRadius = PLAYER_SIZE / 2;
+
+        targetX = Math.min(Math.max(targetX, playerRadius), canvas.width - playerRadius);
+        targetY = Math.min(Math.max(targetY, playerRadius), canvas.height - playerRadius);
+
+        // Check collision before updating position
+        if (!checkObstacleCollision(playerRadius, targetX, state.player.y)) {
+            state.player.x = targetX;
+        }
+
+        if (!checkObstacleCollision(playerRadius, state.player.x, targetY)) {
+            state.player.y = targetY;
+        }
+    }
+
+    function handleTouchEnd(e) {
+        if (!state.isRunning) return;
+        state.isDragging = false;
+        // Optionally set player speed to zero when drag ends
+        state.player.dx = 0;
+        state.player.dy = 0;
+    }
+
+
+    // Initial setup
+    window.onload = function() {
+        state.player.emoji = PLAYER_CHARACTERS[0].emoji;
+        state.currentModeId = PLAYER_MODES[0].id;
+        state.currentLevelKey = Object.keys(GAME_LEVELS)[0]; // Initialize to the first level
+
+        setupEventListeners();
+        
+        // Initial load of obstacles for canvas drawing
+        state.currentObstacles = [...STATIC_BARRIERS];
+
+        resizeCanvas();
+        showMessage("Instructions",
+                    `Welcome, Farmer! Select your mode and environment to begin the chicken chase.`,
+                    "Ready to Play");
+        startButton.disabled = false;
+        startButton.textContent = "Start Game";
+    };
+    
+    // Placeholder for required Firebase variables (not used for this specific game logic but kept for environment integrity)
+    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+    if (Object.keys(firebaseConfig).length > 0) {
+        console.log("Firebase configuration found but authentication is bypassed for this simple client-side game.");
+    }
+</script>
+
+</body>
+</html>
