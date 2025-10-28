@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://i.imgur.com/4rHzr3N.png" width="200" alt="Braneburne Logo">
-</p>
-
 <h1 align="center">🐔 Chicken Chase 2D</h1>
 
 <p align="center">
@@ -47,3 +43,4 @@
 ### ⚖️ License
 This project is licensed under the **Creative Commons Attribution–NonCommercial 4.0 International License (CC BY-NC 4.0)**.  
 © 2025 Braneburne Studios. All rights reserved.
+
